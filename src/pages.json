@@ -1,45 +1,20 @@
 {
-	"cloud": true,
-	"easycom": {
-		"^u-(.*)": "uview-ui/components/u-$1/u-$1.vue"
-	},
-	"pages": [
-		{
-			"path": "pages/welcome/index"
-		},
-		{
-			"path": "pages/home/index",
-			"style": {
-				"enablePullDownRefresh": true,
-				"backgroundTextStyle": "light"
-			}
-		},
-		{
-			"path": "pages/bill/index"
-		}
-	],
-	"globalStyle": {
-		"navigationBarTextStyle": "white",
-		"navigationBarBackgroundColor": "#2979ff",
-		"backgroundColor": "#2979ff",
-		"navigationBarTitleText": "Mok手记"
-	},
-	"tabBar": {
-		"color": "#8a8a8a",
-		"selectedColor": "#2979ff",
-		"list": [
-			{
-				"pagePath": "pages/home/index",
-				"text": "首页",
-				"iconPath": "./static/images/home.png",
-				"selectedIconPath": "./static/images/home-active.png"
-			},
-			{
-				"pagePath": "pages/bill/index",
-				"text": "账单",
-				"iconPath": "./static/images/bill.png",
-				"selectedIconPath": "./static/images/bill-active.png"
-			}
-		]
-	}
+  "cloud": true,
+  "easycom": {
+    "^u-(.*)": "uview-ui/components/u-$1/u-$1.vue"
+  },
+  "pages": [
+    {
+      "path": "pages/welcome/index"
+    },
+    {
+      "path": "pages/home/index"
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#2979ff",
+    "backgroundColor": "#2979ff",
+    "navigationBarTitleText": "Mok手记"
+  }
 }

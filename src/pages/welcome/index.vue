@@ -1,5 +1,13 @@
 <template>
   <view class="welcome-page">
+    <view class="welcome-page__notice" v-if="noticeShow">
+      <u-notice-bar
+        mode="horizontal"
+        :list="['Mok手记不收集任何数据，请勿随意删除以免造成数据丢失。']"
+        :close-icon="true"
+        @close="handleCloseNotice"
+      />
+    </view>
     <view class="welcome-page__header">
       <view class="welcome-page__title">MOK手记</view>
       <view class="welcome-page__description">记录，让生活更美好</view>
@@ -21,43 +29,23 @@
 
 <script>
 import { setUserInfo } from '@/api/user'
-import { fetchUserHistories } from '@/api/history'
 
 export default {
+  data() {
+    return {
+      noticeShow: true
+    }
+  },
   methods: {
     handleGetUserInfo(response) {
       const {
         detail: { userInfo }
       } = response
       if (userInfo) {
-        uni.showLoading()
-
-        fetchUserHistories()
-          .then(res => {
-            const {
-              result: { data }
-            } = res
-            const payload = {
-              ...userInfo,
-              history: data.length === 0 ? [] : data[0].history
-            }
-
-            setUserInfo(payload)
-
-            uni.reLaunch({
-              url: '/pages/home/index'
-            })
-          })
-          .catch(err => {
-            this.$refs.uToast.show({
-              title: err.message,
-              type: 'error',
-              position: 'top'
-            })
-          })
-          .finally(() => {
-            uni.hideLoading()
-          })
+        setUserInfo(userInfo)
+        uni.reLaunch({
+          url: '/pages/home/index'
+        })
       } else {
         this.$refs.uToast.show({
           title: '此小程序需要授权才能使用',
@@ -65,6 +53,17 @@ export default {
           position: 'top'
         })
       }
+    },
+    handleCloseNotice() {
+      this.noticeShow = false
+    }
+  },
+  onShareAppMessage() {
+    return {
+      path: '/pages/welcome/index',
+      title: '记录，让生活更美好',
+      imageUrl:
+        'http://r.photo.store.qq.com/psc?/V12sBGmc0L7T7G/45NBuzDIW489QBoVep5mcSRsSKNLujlDSymoHHoIHUVBgsePoPxMB86a8a*.D*Ix*TWw1n87pJO6LGRw68MBuNnugL3XbtT1V2u5DSaw0uo!/r'
     }
   }
 }
@@ -77,6 +76,13 @@ export default {
   background-color: $u-type-primary;
   padding-top: 240rpx;
   text-align: center;
+
+  &__notice {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+  }
 
   &__header {
     color: #fff;

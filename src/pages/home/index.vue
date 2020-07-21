@@ -102,7 +102,7 @@
                   <u-icon
                     name="rmb-circle-fill"
                     :color="item.type  === 'INCOME' ? '#ff9900' : '#2979ff'"
-                    size="48"
+                    size="40"
                   />
                 </view>
                 <view class="history__item-note">{{item.note}}</view>
@@ -227,7 +227,7 @@
 
 <script>
 import { getUserInfo, setUserInfo } from '@/api/user'
-import { fetchUserHistories } from '@/api/history'
+import { select, add, remove, update } from '@/api/db'
 
 const date = new Date()
 const year = date.getFullYear()
@@ -274,7 +274,7 @@ export default {
       historyList: [],
       timeList: [],
       addForm: { ...defaultAddForm },
-      removeID: ''
+      id: ''
     }
   },
   computed: {
@@ -319,6 +319,12 @@ export default {
     },
     options() {
       return [
+        {
+          text: '编辑',
+          style: {
+            backgroundColor: '#007aff'
+          }
+        },
         {
           text: '删除',
           style: {
@@ -375,44 +381,15 @@ export default {
   },
   methods: {
     // 获取记录
-    getHistory() {
-      uni.showLoading()
-
-      fetchUserHistories()
-        .then(res => {
-          const {
-            result: {
-              data: [{ history }]
-            }
-          } = res
-          const userInfo = getUserInfo()
-          const payload = { ...userInfo, history }
-          setUserInfo(payload)
-          this.history = history ? history : []
-          uni.stopPullDownRefresh()
-        })
-        .catch(err => {
-          this.$refs.uToast.show({
-            title: err.message,
-            type: 'error',
-            position: 'top'
-          })
-        })
-        .finally(() => {
-          uni.hideLoading()
-        })
+    getHistory(payload) {
+      this.history = select(payload)
     },
-    // 设置记录列表
     // 日期选择确认事件
     handleDateConfirm({ year, month }) {
-      this.year = year
-      this.month = month
+      this.year = parseInt(year)
+      this.month = parseInt(month)
 
-      const list = this.history
-
-      this.historyList = list.filter(
-        item => item.year === year && item.month === month
-      )
+      this.getHistory({ year: this.year, month: this.month })
     },
     // 添加弹窗显示
     handleAddShow() {
@@ -420,7 +397,7 @@ export default {
     },
     // 点击数字键盘事件
     handleKeyboardClick(value) {
-      const {
+      let {
         addForm: { money }
       } = this
 
@@ -442,9 +419,18 @@ export default {
       }
     },
     // 滑块点击：删除按钮点击
-    handleSwipeClick(id) {
-      this.removeID = id
-      this.removeAgainVisible = true
+    handleSwipeClick(id, index) {
+      this.id = id
+      // 0为编辑
+      if (index === 0) {
+        const target = this.history.find(item => item.id === id)
+        if (target) {
+          this.addForm = { ...target, money: target.money.toString() }
+          this.addVisible = true
+        }
+      } else {
+        this.removeAgainVisible = true
+      }
     },
     // 删除显示
     handleSwipeOpen(id) {
@@ -460,38 +446,25 @@ export default {
     },
     // 删除
     handleRemove() {
-      if (this.removeID) {
-        const id = this.removeID
-
+      if (this.id) {
         uni.showLoading()
-
-        wx.cloud
-          .callFunction({
-            name: 'updateUserHistory',
-            data: {
-              id
-            }
+        try {
+          remove(this.id)
+          this.getHistory({ year: this.year, month: this.month })
+        } catch (error) {
+          this.$refs.uToast.show({
+            title: error.message,
+            type: 'error',
+            position: 'top'
           })
-          .then(() => {
-            uni.hideLoading()
-
-            this.history = this.history.filter(item => item.id !== id)
-            const userInfo = getUserInfo()
-            const userInfoPayload = { ...userInfo, history: this.history }
-            setUserInfo(userInfoPayload)
-          })
-          .catch(err => {
-            this.$refs.uToast.show({
-              title: err.message,
-              type: 'error',
-              position: 'top'
-            })
-          })
+        } finally {
+          uni.hideLoading()
+        }
       }
     },
     // 删除取消
     handleRemoveCancel() {
-      this.removeID = ''
+      this.id = ''
     },
     // 添加取消事件
     handleAddCancel() {
@@ -505,34 +478,28 @@ export default {
         const payload = { id: Date.now(), ...this.addForm }
         this.addLoading = true
         uni.showLoading()
+        try {
+          if (this.id) {
+            payload['id'] = this.id
+            update(payload)
+          } else {
+            add(payload)
+          }
 
-        wx.cloud
-          .callFunction({
-            name: 'addUserHistory',
-            data: {
-              payload
-            }
+          this.getHistory({ year: this.year, month: this.month })
+          this.addVisible = false
+          this.addForm = { ...defaultAddForm }
+          this.id = ''
+        } catch (error) {
+          this.$refs.uToast.show({
+            title: error.message,
+            type: 'error',
+            position: 'top'
           })
-          .then(() => {
-            this.history.push(payload)
-
-            const userInfo = getUserInfo()
-            const userInfoPayload = { ...userInfo, history: this.history }
-            setUserInfo(userInfoPayload)
-            this.addForm = { ...defaultAddForm }
-            this.addVisible = false
-          })
-          .catch(err => {
-            this.$refs.uToast.show({
-              title: err.message,
-              type: 'error',
-              position: 'top'
-            })
-          })
-          .finally(() => {
-            uni.hideLoading()
-            this.addLoading = false
-          })
+        } finally {
+          this.addLoading = false
+          uni.hideLoading()
+        }
       }
     },
     // 添加验证
@@ -566,14 +533,15 @@ export default {
   },
   // 页面显示
   onShow() {
-    this.getHistory()
+    this.getHistory({ year: this.year, month: this.month })
   },
-  // 下拉刷新
-  onPullDownRefresh() {
-    this.year = year
-    this.month = month
-
-    this.getHistory()
+  onShareAppMessage() {
+    return {
+      path: '/pages/welcome/index',
+      title: '记录，让生活更美好',
+      imageUrl:
+        'http://r.photo.store.qq.com/psc?/V12sBGmc0L7T7G/45NBuzDIW489QBoVep5mcSRsSKNLujlDSymoHHoIHUVBgsePoPxMB86a8a*.D*Ix*TWw1n87pJO6LGRw68MBuNnugL3XbtT1V2u5DSaw0uo!/r'
+    }
   }
 }
 </script>
@@ -666,7 +634,6 @@ export default {
 
       &-icon {
         margin-right: 16rpx;
-        margin-top: -8rpx;
       }
 
       &-note {
@@ -680,6 +647,7 @@ export default {
       &-money {
         font-weight: 700;
         flex: 0 0 auto;
+        margin-right: 8rpx;
       }
     }
 
